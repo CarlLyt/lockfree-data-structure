@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <semaphore.h>
@@ -5,21 +6,19 @@
 
 sem_t sem1, sem2;
 sem_t end1, end2;
-int x, y;
-int r1, r2;
+std::atomic<int> x(0), y(0);
+std::atomic<int> r1(0), r2(0);
+
 int threshold = 0;
 
 void thread_worker1() {
   for (;;) {
     if (threshold >= 20)
       return;
+
     sem_wait(&sem1);
-
-    y = 1;
-    // asm volatile("mfence" ::: "memory");
-
-    r1 = x;
-
+    y.store(1);
+    r1.store(x);
     sem_post(&end1);
   }
 }
@@ -28,12 +27,10 @@ void thread_worker2() {
   for (;;) {
     if (threshold >= 20)
       return;
-    sem_wait(&sem2);
 
-    x = 1;
-    // asm volatile("mfence" ::: "memory");
-    // asm volatile("" ::: "memory");
-    r2 = y;
+    sem_wait(&sem2);
+    x.store(1);
+    r2.store(y);
     sem_post(&end2);
   }
 }
@@ -48,21 +45,23 @@ int main() {
   std::thread work2(thread_worker2);
 
   for (;;) {
-    x = 0, y = 0;
+    x = 100, y = 100;
+    r1 = 1;
+    r2 = 1;
     sem_post(&sem1);
     sem_post(&sem2);
     sem_wait(&end1);
     sem_wait(&end2);
 
-    if (r1 == 0 && r2 == 0) {
+    if (r1.load() == 100 && r2.load() == 100) {
       threshold++;
-      std::cout << iterations << " iterations, found reordered happend "
-                << threshold << " times" << std::endl;
+      std::cout << iterations << " found reordered happend " << threshold
+                << ", r1=" << r1 << ", r2=" << r2 << std::endl;
+
       if (threshold >= 20)
         break;
     }
     iterations++;
-    r1 = 1, r2 = 1;
   }
   sem_post(&sem1);
   sem_post(&sem2);
