@@ -17,9 +17,11 @@ void thread_worker1() {
       return;
 
     sem_wait(&sem1);
+
     y = 1;
     std::atomic_thread_fence(std::memory_order_seq_cst);
     r1 = x;
+
     sem_post(&end1);
   }
 }
@@ -30,9 +32,11 @@ void thread_worker2() {
       return;
 
     sem_wait(&sem2);
+
     x = 1;
     std::atomic_thread_fence(std::memory_order_seq_cst);
     r2 = y;
+
     sem_post(&end2);
   }
 }

@@ -1,24 +1,26 @@
+#include <assert.h>
 #include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <semaphore.h>
 #include <thread>
-
 sem_t sem1, sem2;
 sem_t end1, end2;
-std::atomic<int> x(0), y(0);
-std::atomic<int> r1(0), r2(0);
-
+int x, y;
+int r1, r2;
+std::atomic<int> flag(0);
 int threshold = 0;
 
 void thread_worker1() {
   for (;;) {
     if (threshold >= 20)
       return;
-
     sem_wait(&sem1);
-    y.store(1);
-    r1.store(x);
+    while (rand() % 101 != 0)
+      ;
+    y = 1;
+    r1 = x;
+    flag.store(1, std::memory_order_release);
     sem_post(&end1);
   }
 }
@@ -27,10 +29,14 @@ void thread_worker2() {
   for (;;) {
     if (threshold >= 20)
       return;
-
     sem_wait(&sem2);
-    x.store(1);
-    r2.store(y);
+    while (rand() % 101 != 0)
+      ;
+    while (flag.load(std::memory_order_acquire) == 0) {
+      std::this_thread::yield();
+    }
+    x = 1;
+    r2 = y;
     sem_post(&end2);
   }
 }
@@ -45,23 +51,24 @@ int main() {
   std::thread work2(thread_worker2);
 
   for (;;) {
-    x = 100, y = 100;
-    r1 = 1;
-    r2 = 1;
+    x = 0, y = 0;
     sem_post(&sem1);
     sem_post(&sem2);
     sem_wait(&end1);
     sem_wait(&end2);
 
-    if (r1.load() == 100 && r2.load() == 100) {
+    if (r1 == 0 && r2 == 0) {
       threshold++;
-      std::cout << iterations << " found reordered happend " << threshold
-                << ", r1=" << r1 << ", r2=" << r2 << std::endl;
-
+      std::cout << iterations << " iterations, found reordered happend "
+                << threshold << " times" << std::endl;
       if (threshold >= 20)
         break;
     }
     iterations++;
+    r1 = 1, r2 = 1;
+    flag = 0;
+    if (iterations % 1000000 == 0)
+      std::cout << "alive" << std::endl;
   }
   sem_post(&sem1);
   sem_post(&sem2);

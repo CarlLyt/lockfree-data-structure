@@ -7,6 +7,7 @@ sem_t sem1, sem2;
 sem_t end1, end2;
 int x, y;
 int r1, r2;
+int flag = 0;
 int threshold = 0;
 
 void thread_worker1() {
@@ -14,12 +15,12 @@ void thread_worker1() {
     if (threshold >= 20)
       return;
     sem_wait(&sem1);
-
+    int m = r2;
     y = 1;
     // asm volatile("mfence" ::: "memory");
-
+    // asm volatile("" ::: "memory");
     r1 = x;
-
+    flag = 1;
     sem_post(&end1);
   }
 }
@@ -29,7 +30,10 @@ void thread_worker2() {
     if (threshold >= 20)
       return;
     sem_wait(&sem2);
-
+    int m = r1;
+    while (flag == 0) {
+      std::this_thread::yield();
+    }
     x = 1;
     // asm volatile("mfence" ::: "memory");
     // asm volatile("" ::: "memory");
@@ -63,6 +67,9 @@ int main() {
     }
     iterations++;
     r1 = 1, r2 = 1;
+    flag = 1;
+    if (iterations % 1000000 == 0)
+      std::cout << "alive" << std::endl;
   }
   sem_post(&sem1);
   sem_post(&sem2);

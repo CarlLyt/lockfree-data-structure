@@ -8,6 +8,7 @@ sem_t sem1, sem2;
 sem_t end1, end2;
 std::atomic<int> x(0), y(0);
 std::atomic<int> r1(0), r2(0);
+
 int threshold = 0;
 
 void thread_worker1() {
@@ -17,7 +18,7 @@ void thread_worker1() {
 
     sem_wait(&sem1);
     y.store(1, std::memory_order_seq_cst);
-    r1.store(x.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
+    r1.store(x, std::memory_order_seq_cst);
     sem_post(&end1);
   }
 }
@@ -29,7 +30,7 @@ void thread_worker2() {
 
     sem_wait(&sem2);
     x.store(1, std::memory_order_seq_cst);
-    r2.store(y.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
+    r2.store(y, std::memory_order_seq_cst);
     sem_post(&end2);
   }
 }
@@ -45,8 +46,8 @@ int main() {
 
   for (;;) {
     x = 100, y = 100;
-    r1.store(1, std::memory_order_seq_cst);
-    r2.store(1, std::memory_order_seq_cst);
+    r1 = 1;
+    r2 = 1;
     sem_post(&sem1);
     sem_post(&sem2);
     sem_wait(&end1);
@@ -56,7 +57,8 @@ int main() {
         r2.load(std::memory_order_seq_cst) == 100) {
       threshold++;
       std::cout << iterations << " found reordered happend " << threshold
-                << " times" << std::endl;
+                << ", r1=" << r1 << ", r2=" << r2 << std::endl;
+
       if (threshold >= 20)
         break;
     }
