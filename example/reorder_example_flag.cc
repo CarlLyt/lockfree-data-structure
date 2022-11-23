@@ -8,17 +8,18 @@ sem_t sem1, sem2;
 sem_t end1, end2;
 int x, y;
 int r1, r2;
+int flag = 0;
 
 void thread_worker1() {
   for (;;) {
     sem_wait(&sem1);
-    while (rand() % 6 != 0)
+    while (rand() % 101 != 0)
       ;
-    r1 = x;
     y = 1;
     // asm volatile("mfence" ::: "memory");
     // asm volatile("" ::: "memory");
-
+    r1 = x;
+    flag = 1;
     sem_post(&end1);
   }
 }
@@ -26,12 +27,13 @@ void thread_worker1() {
 void thread_worker2() {
   for (;;) {
     sem_wait(&sem2);
-    while (rand() % 6 != 0)
-      ;
-    r2 = y;
+    while (flag == 0) {
+      std::this_thread::yield();
+    }
     x = 1;
     // asm volatile("mfence" ::: "memory");
     // asm volatile("" ::: "memory");
+    r2 = y;
     sem_post(&end2);
   }
 }
@@ -51,13 +53,12 @@ int main() {
     sem_wait(&end1);
     sem_wait(&end2);
 
-    if (r1 == 1) {
-      if (r2 == 1)
-        std::cout << "Iteration " << iterations << std::endl;
-      assert(r2 != 1);
+    if (r1 == 0) {
+      assert(r2 != 0);
     }
     iterations++;
-    r1 = 0, r2 = 0;
+    r1 = 1, r2 = 1;
+    flag = 0;
     if (iterations % HEARBEAT == 0)
       std::cout << "alive" << std::endl;
   }
