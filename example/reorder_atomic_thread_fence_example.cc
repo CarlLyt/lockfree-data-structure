@@ -1,9 +1,9 @@
 #include <atomic>
+#include <conf.h>
 #include <cstdlib>
 #include <iostream>
 #include <semaphore.h>
 #include <thread>
-
 sem_t sem1, sem2;
 sem_t end1, end2;
 int x, y;

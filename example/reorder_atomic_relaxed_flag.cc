@@ -18,9 +18,7 @@ void thread_worker1() {
       ;
     y = 1;
     r1 = x;
-
-    flag.store(y, std::memory_order_release);
-
+    flag.store(1, std::memory_order_relaxed);
     sem_post(&end1);
   }
 }
@@ -30,11 +28,9 @@ void thread_worker2() {
     sem_wait(&sem2);
     while (rand() % 101 != 0)
       ;
-    // upgrade to std::memory_order_acquire
-    while (flag.load(std::memory_order_consume) == 0) {
+    while (flag.load(std::memory_order_relaxed) == 0) {
       std::this_thread::yield();
     }
-
     x = 1;
     r2 = y;
     sem_post(&end2);
@@ -42,10 +38,6 @@ void thread_worker2() {
 }
 
 int main() {
-  std::kill_dependency(x);
-  std::kill_dependency(y);
-  std::kill_dependency(r1);
-  std::kill_dependency(r2);
   sem_init(&sem1, 0, 0);
   sem_init(&sem2, 0, 0);
   sem_init(&end1, 0, 0);
@@ -64,11 +56,12 @@ int main() {
     if (r1 == 0) {
       assert(r2 != 0);
     }
-    iterations++;
     r1 = 1, r2 = 1;
     flag = 0;
-    if (iterations % HEARBEAT == 0)
+    iterations++;
+    if (iterations % HEARBEAT == 0) {
       std::cout << "alive" << std::endl;
+    }
   }
   sem_post(&sem1);
   sem_post(&sem2);
