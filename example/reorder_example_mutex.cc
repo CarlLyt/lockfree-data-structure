@@ -18,7 +18,6 @@ void thread_worker1() {
       std::lock_guard<std::mutex> guard(mtx);
       y = 1;
       r1 = x;
-      flag = 1;
     }
     sem_post(&end1);
   }
@@ -27,9 +26,6 @@ void thread_worker1() {
 void thread_worker2() {
   for (;;) {
     sem_wait(&sem2);
-    while (flag == 0) {
-      std::this_thread::yield();
-    }
     {
       std::lock_guard<std::mutex> guard(mtx);
       x = 1;
@@ -59,7 +55,7 @@ int main() {
     }
     iterations++;
     r1 = 1, r2 = 1;
-    flag = 1;
+    flag = 0;
     if (iterations % HEARBEAT == 0)
       std::cout << "alive" << std::endl;
   }

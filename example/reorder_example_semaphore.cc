@@ -45,7 +45,7 @@ int main() {
     }
     iterations++;
     r1 = 1, r2 = 1;
-    flag = 1;
+    flag = 0;
     if (iterations % HEARBEAT == 0)
       std::cout << "alive" << std::endl;
   }
