@@ -7,14 +7,14 @@
 #include <thread>
 sem_t sem1, sem2;
 sem_t end1, end2;
-std::atomic<int> x(0), y(0);
-int r1, r2;
+std::atomic<int> x(1), y(1);
+std::atomic<int> r1(1), r2(1);
 
 void thread_worker1() {
   for (;;) {
     sem_wait(&sem1);
-    y.store(1, std::memory_order_acq_rel);
-    r1 = x.load(std::memory_order_acq_rel);
+    y = 100;
+    r1.store(1, std::memory_order_release);
     sem_post(&end1);
   }
 }
@@ -22,8 +22,9 @@ void thread_worker1() {
 void thread_worker2() {
   for (;;) {
     sem_wait(&sem2);
-    x.store(1, std::memory_order_acq_rel);
-    r2 = y.load(std::memory_order_acq_rel);
+    while (r1.load(std::memory_order_acquire) != 1)
+      ;
+    assert(y == 100);
     sem_post(&end2);
   }
 }
@@ -44,11 +45,13 @@ int main() {
     sem_wait(&end1);
     sem_wait(&end2);
 
-    if (r1 == 0) {
-      assert(r2 != 0);
+    if (r1.load(std::memory_order_acquire) == 0 &&
+        r2.load(std::memory_order_acquire) == 0) {
+      assert_action(iterations);
+      std::abort();
     }
     iterations++;
-    r1 = 1, r2 = 1;
+    r1 = 0, r2 = 0;
     if (iterations % HEARBEAT == 0)
       std::cout << "alive" << std::endl;
   }
